@@ -1132,7 +1132,7 @@ static void s2mu005_muic_handle_attach(struct s2mu005_muic_data *muic_data,
 	case ATTACHED_DEV_JIG_UART_OFF_MUIC:
 	case ATTACHED_DEV_JIG_UART_ON_MUIC:
 	case ATTACHED_DEV_FACTORY_UART_MUIC:
-#if defined(CONFIG_TYPEB_WATERPROOF_MODEL)
+#if defined(CONFIG_TYPEB_WATERPROOF_MODEL) && !defined(CONFIG_SEC_FACTORY)
 	case ATTACHED_DEV_UNDEFINED_RANGE_MUIC:
 #endif
 	case ATTACHED_DEV_TIMEOUT_OPEN_MUIC:
@@ -1185,7 +1185,7 @@ static void s2mu005_muic_handle_attach(struct s2mu005_muic_data *muic_data,
 	case ATTACHED_DEV_TA_MUIC:
 	case ATTACHED_DEV_UNDEFINED_CHARGING_MUIC:
 	case ATTACHED_DEV_UNKNOWN_MUIC:
-#if defined(CONFIG_TYPEB_WATERPROOF_MODEL)
+#if defined(CONFIG_TYPEB_WATERPROOF_MODEL) && !defined(CONFIG_SEC_FACTORY)
 	case ATTACHED_DEV_UNDEFINED_RANGE_MUIC:
 #endif
 		com_to_open(muic_data);
@@ -1387,7 +1387,10 @@ static void s2mu005_muic_detect_dev(struct s2mu005_muic_data *muic_data)
 	case DEV_TYPE1_T1_T2_CHG:
 	if (vbvolt) {
 		/* 200K, 442K should be checkef */
-#if defined(CONFIG_SEC_FACTORY) && defined(CONFIG_MUIC_S2MU005_DISCHARGING_WA)
+#if defined(CONFIG_TYPEB_WATERPROOF_MODEL) && !defined(CONFIG_SEC_FACTORY)
+		new_dev = ATTACHED_DEV_UNDEFINED_RANGE_MUIC;
+		pr_info("%s:%s: UNDEFINED RANGE DETECTED\n", MUIC_DEV_NAME, __func__);
+#elif defined(CONFIG_SEC_FACTORY) && defined(CONFIG_MUIC_S2MU005_DISCHARGING_WA)
 		new_dev = ATTACHED_DEV_CARKIT_MUIC;
 		pr_info("%s:%s:CARKIT DETECTED\n", MUIC_DEV_NAME, __func__);
 #else
@@ -1455,8 +1458,13 @@ static void s2mu005_muic_detect_dev(struct s2mu005_muic_data *muic_data)
 	case DEV_TYPE2_JIG_USB_OFF:
 		if (!vbvolt)
 			break;
+#if defined(CONFIG_TYPEB_WATERPROOF_MODEL) && !defined(CONFIG_SEC_FACTORY)
+		new_dev = ATTACHED_DEV_UNDEFINED_RANGE_MUIC;
+		pr_info("%s:%s: UNDEFINED RANGE DETECTED\n", MUIC_DEV_NAME, __func__);
+#else
 		new_dev = ATTACHED_DEV_JIG_USB_OFF_MUIC;
 		pr_info("%s:%s: JIG_USB_OFF DETECTED\n", MUIC_DEV_NAME, __func__);
+#endif
 		break;
 	case DEV_TYPE2_JIG_USB_ON:
 		if (!vbvolt)
@@ -1470,10 +1478,18 @@ static void s2mu005_muic_detect_dev(struct s2mu005_muic_data *muic_data)
 
 	switch (val3) {
 	case DEV_TYPE3_MHL:
-		if (muic_data->pdata->is_factory_uart)
+		if (muic_data->pdata->is_factory_uart) {
 			new_dev = ATTACHED_DEV_FACTORY_UART_MUIC;
 			pr_info("%s:%s: FACTORY_UART DETECTED\n", MUIC_DEV_NAME, __func__);
-		break;
+			break;
+			}
+#if defined(CONFIG_TYPEB_WATERPROOF_MODEL) && !defined(CONFIG_SEC_FACTORY)
+		else if (vbvolt) {
+			new_dev = ATTACHED_DEV_UNDEFINED_RANGE_MUIC;
+			pr_info("%s:%s: UNDEFINED RANGE DETECTED\n", MUIC_DEV_NAME, __func__);
+			break;
+		}
+#endif			
 	default:
 		break;
 	}
@@ -1486,7 +1502,7 @@ static void s2mu005_muic_detect_dev(struct s2mu005_muic_data *muic_data)
 		new_dev = ATTACHED_DEV_TA_MUIC;
 		pr_info("%s:%s: APPLE_CHG DETECTED\n", MUIC_DEV_NAME, __func__);
 	}
-
+#if !defined(CONFIG_TYPEB_WATERPROOF_MODEL) && !defined(CONFIG_SEC_FACTORY)
 	if ((val6 & DEV_TYPE_CHG_TYPE) &&
 		(new_dev == ATTACHED_DEV_UNKNOWN_MUIC)) {
 		/* This is workaround for LG USB cable which has 219k ohm ID */
@@ -1504,7 +1520,7 @@ static void s2mu005_muic_detect_dev(struct s2mu005_muic_data *muic_data)
 			pr_info("%s:%s: TYPE3_CHARGER DETECTED\n", MUIC_DEV_NAME, __func__);
 		}
 	}
-
+#endif
 	if (val2 & DEV_TYPE2_AV || val3 & DEV_TYPE3_AV_WITH_VBUS) {
 		if (vbvolt) {
 			new_dev = ATTACHED_DEV_DESKDOCK_VB_MUIC;
@@ -1531,7 +1547,10 @@ static void s2mu005_muic_detect_dev(struct s2mu005_muic_data *muic_data)
 			/* This is workaround for LG USB cable
 					which has 219k ohm ID */
 			if (vbvolt) {
-#if defined(CONFIG_SEC_FACTORY) && defined(CONFIG_MUIC_S2MU005_DISCHARGING_WA)
+#if defined(CONFIG_TYPEB_WATERPROOF_MODEL) && !defined(CONFIG_SEC_FACTORY)
+				new_dev = ATTACHED_DEV_UNDEFINED_RANGE_MUIC;
+				pr_info("%s:%s: UNDEFINED RANGE DETECTED\n", MUIC_DEV_NAME, __func__);
+#elif defined(CONFIG_SEC_FACTORY) && defined(CONFIG_MUIC_S2MU005_DISCHARGING_WA)
 				new_dev = ATTACHED_DEV_CARKIT_MUIC;
 				pr_info("%s:%s: CARKIT DETECTED\n", MUIC_DEV_NAME, __func__);
 #else
@@ -1542,17 +1561,27 @@ static void s2mu005_muic_detect_dev(struct s2mu005_muic_data *muic_data)
 			break;
 		case ADC_CEA936ATYPE2_CHG:
 			if (vbvolt) {
+#if defined(CONFIG_TYPEB_WATERPROOF_MODEL) && !defined(CONFIG_SEC_FACTORY)
+				new_dev = ATTACHED_DEV_UNDEFINED_RANGE_MUIC;
+				pr_info("%s:%s: UNDEFINED RANGE DETECTED\n", MUIC_DEV_NAME, __func__);
+#else
 				new_dev = ATTACHED_DEV_TA_MUIC;
 				pr_info("%s:%s: ADC TYPE2 CHARGER DETECTED(TA)\n", MUIC_DEV_NAME, __func__);
+#endif
 			}
 			break;
 		case ADC_JIG_USB_OFF: /* 255k */
 			if (!vbvolt)
 				break;
+#if defined(CONFIG_TYPEB_WATERPROOF_MODEL) && !defined(CONFIG_SEC_FACTORY)
+			new_dev = ATTACHED_DEV_UNDEFINED_RANGE_MUIC;
+			pr_info("%s:%s: UNDEFINED RANGE DETECTED\n", MUIC_DEV_NAME, __func__);
+#else
 			if (new_dev != ATTACHED_DEV_JIG_USB_OFF_MUIC) {
 				new_dev = ATTACHED_DEV_JIG_USB_OFF_MUIC;
 				pr_info("%s:%s: ADC JIG_USB_OFF DETECTED\n", MUIC_DEV_NAME, __func__);
 			}
+#endif
 			break;
 		case ADC_JIG_USB_ON:
 			if (!vbvolt)
@@ -1589,8 +1618,7 @@ static void s2mu005_muic_detect_dev(struct s2mu005_muic_data *muic_data)
 		case ADC_JIG_UART_ON:
 			if (new_dev != ATTACHED_DEV_JIG_UART_ON_MUIC) {
 				new_dev = ATTACHED_DEV_JIG_UART_ON_MUIC;
-				pr_info("%s:%s: ADC JIG_UART_ON DETECTED\n",
-							MUIC_DEV_NAME, __func__);
+				pr_info("%s:%s: ADC JIG_UART_ON DETECTED\n", MUIC_DEV_NAME, __func__);
 			}
 			break;
 		case ADC_DESKDOCK:
@@ -1605,6 +1633,14 @@ static void s2mu005_muic_detect_dev(struct s2mu005_muic_data *muic_data)
 							MUIC_DEV_NAME, __func__);
 			}
 			break;
+#if defined(CONFIG_TYPEB_WATERPROOF_MODEL)
+		case ADC_SMARTDOCK:
+			if(vbvolt) {
+				pr_info("%s:%s: ADC RDU DETECTED\n", MUIC_DEV_NAME, __func__);
+				new_dev = ATTACHED_DEV_TA_MUIC;
+			}
+			break;
+#endif
 #if defined(CONFIG_LANHUB_SUPPORT)
 		case ADC_USB_LANHUB:
 			new_dev = ATTACHED_DEV_USB_LANHUB_MUIC;
@@ -1623,7 +1659,7 @@ static void s2mu005_muic_detect_dev(struct s2mu005_muic_data *muic_data)
 
 	if ((ATTACHED_DEV_UNKNOWN_MUIC == new_dev) && (ADC_OPEN != adc)) {
 		if (vbvolt) {
-#if defined(CONFIG_TYPEB_WATERPROOF_MODEL)
+#if defined(CONFIG_TYPEB_WATERPROOF_MODEL) && !defined(CONFIG_SEC_FACTORY)
 			new_dev = ATTACHED_DEV_UNDEFINED_RANGE_MUIC;
 			pr_info("%s:%s: UNDEFINED RANGE DETECTED\n", MUIC_DEV_NAME, __func__);
 #else

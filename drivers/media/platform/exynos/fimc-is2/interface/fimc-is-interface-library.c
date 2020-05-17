@@ -1272,9 +1272,10 @@ int lib_task_init(void)
 							&lib->task_taaisp[i].worker,
 							name);
 		if (IS_ERR(lib->task_taaisp[i].task)) {
-			err_lib("failed to create library task_handler(%d)", i);
-			return -ENOMEM;
-		}
+			err_lib("failed to create library task_handler(%d), err(%ld)",
+				i, PTR_ERR(lib->task_taaisp[i].task));
+			return PTR_ERR(lib->task_taaisp[i].task);
+ 		}
 #ifdef ENABLE_FPSIMD_FOR_USER
 		fpsimd_set_task_using(lib->task_taaisp[i].task);
 #endif
